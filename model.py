@@ -556,8 +556,105 @@ def encode_trajectory(text, block_size=40):
 
     return ids, mask
 
-# Step 6 - ToolLM (not yet solved)
-# TODO: implement
+# Step 6 - ToolLM
+import torch
+import torch.nn as nn
+
+
+class ToolLM(nn.Module):
+    """
+    A small causal Transformer language model.
+
+    Input:
+        Token IDs of shape (B, T).
+
+    Output:
+        Next-token logits of shape (B, T, vocab_size).
+    """
+
+    def __init__(self, vocab_size, block_size=40, d_model=48, n_head=4, n_layer=1):
+        super().__init__()
+
+        # Maximum supported sequence length.
+        self.block_size = block_size
+
+        # Token embeddings: convert vocabulary IDs into dense vectors.
+        self.tok_emb = nn.Embedding(vocab_size, d_model)
+
+        # Positional embeddings: encode the position of each token.
+        self.pos_emb = nn.Embedding(block_size, d_model)
+
+        # Stack of causal Transformer encoder layers.
+        self.blocks = nn.ModuleList([
+            nn.TransformerEncoderLayer(
+                d_model=d_model,
+                nhead=n_head,
+                dim_feedforward=4 * d_model,
+                dropout=0.0,
+                batch_first=True,
+                norm_first=True
+            )
+            for _ in range(n_layer)
+        ])
+
+        # Final layer normalization.
+        self.ln_f = nn.LayerNorm(d_model)
+
+        # Linear projection from hidden dimension to vocabulary logits.
+        self.head = nn.Linear(d_model, vocab_size)
+
+    def forward(self, idx):
+        """
+        Forward pass through the causal Transformer.
+
+        Args:
+            idx: Input token IDs with shape (B, T).
+
+        Returns:
+            Logits with shape (B, T, vocab_size).
+        """
+
+        # Extract batch size and sequence length.
+        B, T = idx.shape
+
+        # Ensure the sequence does not exceed the configured block size.
+        if T > self.block_size:
+            raise ValueError(
+                f"Sequence length {T} exceeds block_size {self.block_size}."
+            )
+
+        # Create position indices: 0, 1, 2, ..., T-1.
+        positions = torch.arange(T, device=idx.device)
+
+        # Obtain token embeddings and positional embeddings.
+        tok_emb = self.tok_emb(idx)
+        pos_emb = self.pos_emb(positions)
+
+        # Combine token and positional information.
+        x = tok_emb + pos_emb.unsqueeze(0)
+
+        # Create a causal attention mask.
+        # True above the diagonal prevents attending to future positions.
+        causal = torch.triu(
+            torch.ones(
+                (T, T),
+                dtype=torch.bool,
+                device=idx.device
+            ),
+            diagonal=1
+        )
+
+        # Pass the representations through every Transformer block.
+        for block in self.blocks:
+            x = block(x, src_mask=causal)
+
+        # Apply final layer normalization.
+        x = self.ln_f(x)
+
+        # Project hidden representations into vocabulary logits.
+        logits = self.head(x)
+
+        return logits
 
 # Step 7 - sft_loss (not yet solved)
 # TODO: implement

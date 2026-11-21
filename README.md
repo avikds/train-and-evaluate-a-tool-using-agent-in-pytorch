@@ -15,7 +15,7 @@ python scaffold.py
 - [x] **3.** run_episode
 - [x] **4.** collect_trajectories
 - [x] **5.** encode_trajectory
-- [ ] **6.** ToolLM
+- [x] **6.** ToolLM
 - [ ] **7.** sft_loss
 - [ ] **8.** train_sft
 - [ ] **9.** model_policy
