@@ -1114,8 +1114,116 @@ def score_with_se(outcomes):
         "seed_std": round(seed_std, 4) if seed_std is not None else None
     }
 
-# Step 13 - compare_checkpoints (not yet solved)
-# TODO: implement
+# Step 13 - compare_checkpoints
+def compare_checkpoints(old, new):
+    """
+    Compare two checkpoints using paired and unpaired standard errors.
+
+    Args:
+        old: Outcome matrix for the old checkpoint.
+        new: Outcome matrix for the new checkpoint.
+
+        Both matrices must contain the same tasks in the same order.
+        The number of trials may differ.
+
+    Returns:
+        A dictionary containing:
+            gap: Mean score difference (new - old).
+            se_paired: Paired standard error.
+            se_unpaired: Unpaired standard error.
+            verdict: Statistical comparison result.
+
+        All numerical values are rounded to 4 decimal places.
+
+    Raises:
+        ValueError: If the matrices have different task counts
+                    or contain fewer than two tasks.
+    """
+
+    # Validate that both matrices contain the same number of tasks.
+    if len(old) != len(new):
+        raise ValueError("Both checkpoints must have the same number of tasks.")
+
+    # At least two tasks are required for sample standard deviation.
+    n_tasks = len(old)
+
+    if n_tasks < 2:
+        raise ValueError("At least two tasks are required.")
+
+    # Calculate the statistics for both checkpoints using score_with_se().
+    old_stats = score_with_se(old)
+    new_stats = score_with_se(new)
+
+    # --------------------------------------------------
+    # 1. Calculate task-wise paired score differences.
+    # --------------------------------------------------
+
+    differences = []
+
+    for old_row, new_row in zip(old, new):
+
+        # Calculate the mean success rate for each checkpoint.
+        old_mean = sum(old_row) / len(old_row)
+        new_mean = sum(new_row) / len(new_row)
+
+        # Calculate the paired difference for this task.
+        differences.append(new_mean - old_mean)
+
+    # --------------------------------------------------
+    # 2. Calculate the overall performance gap.
+    # --------------------------------------------------
+
+    gap = sum(differences) / n_tasks
+
+    # --------------------------------------------------
+    # 3. Calculate the paired standard error.
+    # --------------------------------------------------
+
+    # Calculate the sample variance of task-wise differences.
+    paired_variance = sum(
+        (d - gap) ** 2
+        for d in differences
+    ) / (n_tasks - 1)
+
+    # Sample standard deviation of paired differences.
+    paired_std = math.sqrt(paired_variance)
+
+    # Standard error of the mean paired difference.
+    se_paired = paired_std / math.sqrt(n_tasks)
+
+    # --------------------------------------------------
+    # 4. Calculate the unpaired standard error.
+    # --------------------------------------------------
+
+    # Combine the individual checkpoint standard errors.
+    se_unpaired = math.sqrt(
+        old_stats["se"] ** 2 + new_stats["se"] ** 2
+    )
+
+    # --------------------------------------------------
+    # 5. Determine the statistical verdict.
+    # --------------------------------------------------
+
+    # Use unrounded values when determining the verdict.
+    if gap > 2 * se_paired:
+        verdict = "new is better"
+
+    elif gap < -2 * se_paired:
+        verdict = "new is worse"
+
+    else:
+        verdict = "cannot tell"
+
+    # --------------------------------------------------
+    # 6. Return the comparison results.
+    # --------------------------------------------------
+
+    return {
+        "gap": round(gap, 4),
+        "se_paired": round(se_paired, 4),
+        "se_unpaired": round(se_unpaired, 4),
+        "verdict": verdict
+    }
 
 # Step 14 - contamination_report (not yet solved)
 # TODO: implement
