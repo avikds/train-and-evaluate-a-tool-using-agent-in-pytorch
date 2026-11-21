@@ -1225,6 +1225,134 @@ def compare_checkpoints(old, new):
         "verdict": verdict
     }
 
-# Step 14 - contamination_report (not yet solved)
-# TODO: implement
+# Step 14 - contamination_report
+def contamination_report(tasks, outcomes, train_questions):
+    """
+    Split benchmark tasks into seen and held-out groups
+    and calculate the performance of each group.
+
+    Args:
+        tasks: List of benchmark task dictionaries.
+        outcomes: Outcome matrix corresponding to the tasks.
+        train_questions: List of questions used during training.
+
+    Returns:
+        A dictionary containing:
+            seen: Statistics for tasks seen during training.
+            held_out: Statistics for unseen tasks.
+            gap: Seen score minus held-out score.
+            se_gap: Standard error of the difference.
+
+    Question normalization:
+        - Convert to lowercase.
+        - Collapse consecutive whitespace into one space.
+        - Remove leading and trailing whitespace.
+    """
+
+    # Normalize questions by lowercasing and collapsing whitespace.
+    def normalize_question(question):
+        return " ".join(question.lower().split())
+
+    # Create a set of normalized training questions for fast lookup.
+    training_set = {
+        normalize_question(question)
+        for question in train_questions
+    }
+
+    # Separate outcome rows into seen and held-out groups.
+    seen_rows = []
+    held_out_rows = []
+
+    for task, row in zip(tasks, outcomes):
+
+        # Normalize the benchmark question.
+        question = normalize_question(task["question"])
+
+        # Classify the task based on its presence in training data.
+        if question in training_set:
+            seen_rows.append(row)
+
+        else:
+            held_out_rows.append(row)
+
+    # --------------------------------------------------
+    # Calculate statistics for seen tasks.
+    # --------------------------------------------------
+
+    if seen_rows:
+        seen_stats = score_with_se(seen_rows)
+
+        seen = {
+            "n": len(seen_rows),
+            "score": seen_stats["score"],
+            "se": seen_stats["se"]
+        }
+
+    else:
+        # No training-overlap tasks are available.
+        seen = {
+            "n": 0,
+            "score": None,
+            "se": None
+        }
+
+    # --------------------------------------------------
+    # Calculate statistics for held-out tasks.
+    # --------------------------------------------------
+
+    if held_out_rows:
+        held_out_stats = score_with_se(held_out_rows)
+
+        held_out = {
+            "n": len(held_out_rows),
+            "score": held_out_stats["score"],
+            "se": held_out_stats["se"]
+        }
+
+    else:
+        # No held-out tasks are available.
+        held_out = {
+            "n": 0,
+            "score": None,
+            "se": None
+        }
+
+    # --------------------------------------------------
+    # Calculate the performance gap.
+    # --------------------------------------------------
+
+    if seen["score"] is not None and held_out["score"] is not None:
+
+        # Difference between seen and held-out performance.
+        gap = round(
+            seen["score"] - held_out["score"],
+            4
+        )
+
+    else:
+        gap = None
+
+    # --------------------------------------------------
+    # Calculate the standard error of the gap.
+    # --------------------------------------------------
+
+    if seen["se"] is not None and held_out["se"] is not None:
+
+        # The groups contain different tasks, so use the
+        # unpaired standard error.
+        se_gap = round(
+            math.sqrt(seen["se"] ** 2 + held_out["se"] ** 2),
+            4
+        )
+
+    else:
+        se_gap = None
+
+    # Return the final contamination report.
+    return {
+        "seen": seen,
+        "held_out": held_out,
+        "gap": gap,
+        "se_gap": se_gap
+    }
 

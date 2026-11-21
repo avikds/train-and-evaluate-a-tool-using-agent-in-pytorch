@@ -23,7 +23,7 @@ python scaffold.py
 - [x] **11.** pass_k
 - [x] **12.** score_with_se
 - [x] **13.** compare_checkpoints
-- [ ] **14.** contamination_report
+- [x] **14.** contamination_report
 
 ---
 
