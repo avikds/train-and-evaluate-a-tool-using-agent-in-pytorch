@@ -11,7 +11,7 @@ python scaffold.py
 ## Steps
 
 - [x] **1.** run_tool
-- [ ] **2.** parse_action
+- [x] **2.** parse_action
 - [ ] **3.** run_episode
 - [ ] **4.** collect_trajectories
 - [ ] **5.** encode_trajectory

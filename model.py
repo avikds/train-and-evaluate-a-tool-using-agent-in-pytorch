@@ -234,8 +234,90 @@ def run_tool(name, args, store):
         # A tool must never raise an exception.
         return "error"
 
-# Step 2 - parse_action (not yet solved)
-# TODO: implement
+# Step 2 - parse_action
+def parse_action(text):
+    """
+    Parse the model-generated text and return its first action.
+
+    Supported formats:
+        <call> name arg1 arg2 ... </call>
+        <answer> value </answer>
+
+    Returns:
+        A dictionary representing a tool call, final answer,
+        or invalid action.
+    """
+
+    # Handle empty or non-string input.
+    if not isinstance(text, str):
+        return {"type": "invalid"}
+
+    # Split the input text into whitespace-separated tokens.
+    tokens = text.split()
+
+    # Empty input or an invalid opening tag.
+    if not tokens or tokens[0] not in ("<call>", "<answer>"):
+        return {"type": "invalid"}
+
+    # Determine the action type and its corresponding closing tag.
+    action_type = tokens[0]
+
+    if action_type == "<call>":
+        closing_tag = "</call>"
+    else:
+        closing_tag = "</answer>"
+
+    # Find the closing tag of the first action.
+    try:
+        end_index = tokens.index(closing_tag, 1)
+    except ValueError:
+        # The required closing tag is missing.
+        return {"type": "invalid"}
+
+    # Extract tokens between the opening and closing tags.
+    content = tokens[1:end_index]
+
+    # Reject any token that begins with '<' inside the action.
+    if any(token.startswith("<") for token in content):
+        return {"type": "invalid"}
+
+    # --------------------------------------------------
+    # Parse tool call
+    # --------------------------------------------------
+    if action_type == "<call>":
+
+        # A tool call must contain a tool name.
+        if len(content) < 1:
+            return {"type": "invalid"}
+
+        # The first token is the tool name.
+        name = content[0]
+
+        # Remaining tokens are the tool arguments.
+        args = content[1:]
+
+        return {
+            "type": "call",
+            "name": name,
+            "args": args
+        }
+
+    # --------------------------------------------------
+    # Parse final answer
+    # --------------------------------------------------
+    elif action_type == "<answer>":
+
+        # A final answer must contain exactly one token.
+        if len(content) != 1:
+            return {"type": "invalid"}
+
+        return {
+            "type": "answer",
+            "value": content[0]
+        }
+
+    # Any unsupported action is invalid.
+    return {"type": "invalid"}
 
 # Step 3 - run_episode (not yet solved)
 # TODO: implement
