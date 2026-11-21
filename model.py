@@ -711,8 +711,74 @@ def sft_loss(logits, ids, mask):
 
     return loss
 
-# Step 8 - train_sft (not yet solved)
-# TODO: implement
+# Step 8 - train_sft
+def train_sft(model, ids, mask, steps, batch_size=32, lr=3e-3, generator=None):
+    """
+    Fine-tune the model on encoded trajectories using masked SFT loss.
+
+    Args:
+        model: The ToolLM model to train.
+        ids: Token ID tensor of shape (N, T).
+        mask: Loss mask tensor of shape (N, T).
+        steps: Number of training iterations.
+        batch_size: Number of trajectories sampled per iteration.
+        lr: Learning rate for AdamW.
+        generator: Optional PyTorch random number generator.
+
+    Returns:
+        A list containing the training loss from each step as floats.
+    """
+
+    # Create the AdamW optimizer once for the entire training process.
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=lr
+    )
+
+    # Get the total number of available trajectories.
+    N = ids.size(0)
+
+    # Store the loss from every training iteration.
+    losses = []
+
+    # Perform the specified number of training steps.
+    for step in range(steps):
+
+        # Randomly sample trajectory indices with replacement.
+        rows = torch.randint(
+            0,
+            N,
+            (batch_size,),
+            generator=generator
+        )
+
+        # Select the corresponding token IDs and loss masks.
+        batch_ids = ids[rows]
+        batch_mask = mask[rows]
+
+        # Forward pass: predict the next token at every position.
+        logits = model(batch_ids)
+
+        # Calculate the masked supervised fine-tuning loss.
+        loss = sft_loss(
+            logits,
+            batch_ids,
+            batch_mask
+        )
+
+        # Clear gradients from the previous training iteration.
+        optimizer.zero_grad(set_to_none=True)
+
+        # Backpropagate the loss to calculate gradients.
+        loss.backward()
+
+        # Update the model parameters.
+        optimizer.step()
+
+        # Record the current loss as a Python float.
+        losses.append(loss.item())
+
+    return losses
 
 # Step 9 - model_policy (not yet solved)
 # TODO: implement
