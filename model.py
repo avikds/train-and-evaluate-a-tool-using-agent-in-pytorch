@@ -921,8 +921,90 @@ def run_trials(policy, tasks, store, n_trials, max_calls=4):
 
     return outcomes
 
-# Step 11 - pass_k (not yet solved)
-# TODO: implement
+# Step 11 - pass_k
+def pass_k(outcomes, k):
+    """
+    Calculate pass@k and pass^k for an outcome matrix.
+
+    Args:
+        outcomes: Outcome matrix where each row represents a task
+                  and each column represents a trial.
+                  1 indicates success and 0 indicates failure.
+        k: Number of trials selected without replacement.
+
+    Returns:
+        A dictionary containing:
+            pass_at_k: Probability of at least one success.
+            pass_hat_k: Probability that all selected trials succeed.
+
+        Both values are averaged across tasks and rounded to 4 decimals.
+
+    Raises:
+        ValueError: If outcomes is empty, row lengths differ,
+                    or k is outside the valid range.
+    """
+
+    # Ensure the outcome matrix is not empty.
+    if not outcomes:
+        raise ValueError("Outcomes cannot be empty.")
+
+    # Get the number of trials from the first task.
+    n = len(outcomes[0])
+
+    # Ensure every task has the same number of trials.
+    if any(len(row) != n for row in outcomes):
+        raise ValueError("All outcome rows must have the same length.")
+
+    # Validate k.
+    if isinstance(k, bool) or not isinstance(k, int) or not (1 <= k <= n):
+        raise ValueError("k must satisfy 1 <= k <= n.")
+
+    # Total number of ways to select k trials from n trials.
+    denominator = comb(n, k)
+
+    # Accumulate the scores across all tasks.
+    total_pass_at_k = 0.0
+    total_pass_hat_k = 0.0
+
+    # Evaluate each task independently.
+    for row in outcomes:
+
+        # Count the number of successful trials.
+        c = sum(row)
+
+        # Probability of selecting no successful trials.
+        # This is zero when fewer than k failures exist.
+        no_success = (
+            comb(n - c, k) / denominator
+            if n - c >= k
+            else 0.0
+        )
+
+        # pass@k: Probability of at least one successful trial.
+        pass_at_k = 1.0 - no_success
+
+        # pass^k: Probability that all selected trials succeed.
+        pass_hat_k = (
+            comb(c, k) / denominator
+            if c >= k
+            else 0.0
+        )
+
+        # Accumulate both metrics.
+        total_pass_at_k += pass_at_k
+        total_pass_hat_k += pass_hat_k
+
+    # Calculate the mean scores across all tasks.
+    num_tasks = len(outcomes)
+
+    mean_pass_at_k = total_pass_at_k / num_tasks
+    mean_pass_hat_k = total_pass_hat_k / num_tasks
+
+    # Return both metrics rounded to four decimal places.
+    return {
+        "pass_at_k": round(mean_pass_at_k, 4),
+        "pass_hat_k": round(mean_pass_hat_k, 4)
+    }
 
 # Step 12 - score_with_se (not yet solved)
 # TODO: implement
