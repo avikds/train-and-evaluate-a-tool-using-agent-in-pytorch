@@ -780,8 +780,106 @@ def train_sft(model, ids, mask, steps, batch_size=32, lr=3e-3, generator=None):
 
     return losses
 
-# Step 9 - model_policy (not yet solved)
-# TODO: implement
+# Step 9 - model_policy
+def model_policy(model, temperature=1.0, generator=None, max_new_tokens=8):
+    """
+    Wrap a language model as a policy for the agent execution loop.
+
+    Generates the model's next action token by token.
+
+    Args:
+        model: Trained ToolLM model.
+        temperature: Sampling temperature. Zero enables greedy decoding.
+        generator: Optional PyTorch random number generator.
+        max_new_tokens: Maximum number of tokens to generate.
+
+    Returns:
+        A policy function that accepts a transcript and returns
+        the generated action as a whitespace-separated string.
+    """
+
+    def policy(transcript):
+
+        # Split the existing transcript into tokens.
+        tokens = transcript.split()
+
+        # Convert transcript tokens into vocabulary IDs.
+        # Unknown tokens are mapped to <unk>.
+        token_ids = [
+            STOI.get(token, STOI["<unk>"])
+            for token in tokens
+        ]
+
+        # Determine the model's device.
+        # Models without parameters use the CPU by default.
+        try:
+            device = next(model.parameters()).device
+        except StopIteration:
+            device = torch.device("cpu")
+
+        # Create the input tensor with shape (1, T).
+        idx = torch.tensor(
+            [token_ids],
+            dtype=torch.long,
+            device=device
+        )
+
+        # Store the generated tokens separately from the transcript.
+        generated_tokens = []
+
+        # Generate tokens without tracking gradients.
+        with torch.no_grad():
+
+            for _ in range(max_new_tokens):
+
+                # Use only the most recent block_size tokens as context.
+                context = idx[:, -model.block_size:]
+
+                # Run the model and obtain logits for the last position.
+                logits = model(context)[:, -1, :]
+
+                # Select the next token.
+                if temperature == 0:
+
+                    # Greedy decoding: choose the token with the highest logit.
+                    next_id = torch.argmax(
+                        logits,
+                        dim=-1,
+                        keepdim=True
+                    )
+
+                else:
+
+                    # Convert logits into sampling probabilities.
+                    probs = torch.softmax(
+                        logits / temperature,
+                        dim=-1
+                    )
+
+                    # Sample one token from the probability distribution.
+                    next_id = torch.multinomial(
+                        probs,
+                        num_samples=1,
+                        generator=generator
+                    )
+
+                # Append the generated token ID to the input sequence.
+                idx = torch.cat([idx, next_id], dim=1)
+
+                # Convert the generated token ID back into a vocabulary token.
+                next_token = VOCAB[next_id.item()]
+
+                # Save the generated token.
+                generated_tokens.append(next_token)
+
+                # Stop generation after completing a tool call or final answer.
+                if next_token in ("</call>", "</answer>"):
+                    break
+
+        # Return only the newly generated tokens, joined by single spaces.
+        return " ".join(generated_tokens)
+
+    return policy
 
 # Step 10 - run_trials (not yet solved)
 # TODO: implement

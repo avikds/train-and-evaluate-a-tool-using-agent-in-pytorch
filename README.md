@@ -18,7 +18,7 @@ python scaffold.py
 - [x] **6.** ToolLM
 - [x] **7.** sft_loss
 - [x] **8.** train_sft
-- [ ] **9.** model_policy
+- [x] **9.** model_policy
 - [ ] **10.** run_trials
 - [ ] **11.** pass_k
 - [ ] **12.** score_with_se
