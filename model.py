@@ -881,8 +881,45 @@ def model_policy(model, temperature=1.0, generator=None, max_new_tokens=8):
 
     return policy
 
-# Step 10 - run_trials (not yet solved)
-# TODO: implement
+# Step 10 - run_trials
+def run_trials(policy, tasks, store, n_trials, max_calls=4):
+    """
+    Run the complete benchmark repeatedly and record task outcomes.
+
+    Args:
+        policy: The agent policy function.
+        tasks: List of task dictionaries.
+        store: Warehouse dictionary used for all tasks.
+        n_trials: Number of complete benchmark trials.
+        max_calls: Maximum number of tool calls per episode.
+
+    Returns:
+        outcomes: A list of lists where outcomes[i][j] is:
+                  1 if task i was solved correctly in trial j,
+                  0 otherwise.
+    """
+
+    # Initialize one outcome row for each task.
+    outcomes = [[] for _ in tasks]
+
+    # Run trials sequentially to preserve the policy's random sampling order.
+    for trial in range(n_trials):
+
+        # Evaluate every task in its original order.
+        for i, task in enumerate(tasks):
+
+            # Run one episode using the existing agent execution loop.
+            episode = run_episode(
+                policy,
+                task,
+                store,
+                max_calls=max_calls
+            )
+
+            # Record whether the task was solved correctly.
+            outcomes[i].append(int(episode["correct"]))
+
+    return outcomes
 
 # Step 11 - pass_k (not yet solved)
 # TODO: implement

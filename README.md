@@ -19,7 +19,7 @@ python scaffold.py
 - [x] **7.** sft_loss
 - [x] **8.** train_sft
 - [x] **9.** model_policy
-- [ ] **10.** run_trials
+- [x] **10.** run_trials
 - [ ] **11.** pass_k
 - [ ] **12.** score_with_se
 - [ ] **13.** compare_checkpoints
