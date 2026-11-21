@@ -436,8 +436,52 @@ def run_episode(policy, task, store, max_calls=4):
         "transcript": transcript
     }
 
-# Step 4 - collect_trajectories (not yet solved)
-# TODO: implement
+# Step 4 - collect_trajectories
+def collect_trajectories(tasks, stores, teacher):
+    """
+    Run the teacher on every task using its corresponding store.
+
+    Retain only episodes that produce correct answers.
+
+    Args:
+        tasks: List of task dictionaries.
+        stores: List of warehouse dictionaries, one per task.
+        teacher: A policy function that generates the next action.
+
+    Returns:
+        A tuple containing:
+            kept: List of accepted training records.
+            dropped: Number of rejected episodes.
+    """
+
+    # Store the successfully completed and verified trajectories.
+    kept = []
+
+    # Count episodes that fail the correctness checker.
+    dropped = 0
+
+    # Process every task using its corresponding warehouse.
+    for task, store in zip(tasks, stores):
+
+        # Run the teacher policy on the current task.
+        # The default tool-call budget is used.
+        episode = run_episode(teacher, task, store)
+
+        # Retain the trajectory only if the answer checker accepts it.
+        if episode["correct"]:
+
+            kept.append({
+                "id": task["id"],
+                "question": task["question"],
+                "text": episode["transcript"]
+            })
+
+        else:
+            # Reject incorrect, invalid, or unfinished episodes.
+            dropped += 1
+
+    # Return accepted trajectories and the number of rejected episodes.
+    return kept, dropped
 
 # Step 5 - encode_trajectory (not yet solved)
 # TODO: implement
