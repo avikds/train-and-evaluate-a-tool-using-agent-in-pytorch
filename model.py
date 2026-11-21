@@ -1006,8 +1006,113 @@ def pass_k(outcomes, k):
         "pass_hat_k": round(mean_pass_hat_k, 4)
     }
 
-# Step 12 - score_with_se (not yet solved)
-# TODO: implement
+# Step 12 - score_with_se
+def score_with_se(outcomes):
+    """
+    Calculate the benchmark score and its statistical uncertainty.
+
+    Args:
+        outcomes: A matrix where each row represents a task
+                  and each column represents a trial.
+                  1 indicates success and 0 indicates failure.
+
+    Returns:
+        A dictionary containing:
+            score: Overall mean accuracy.
+            se: Standard error across tasks.
+            seed_scores: Mean accuracy for each trial.
+            seed_std: Sample standard deviation across trials.
+
+        All numerical values are rounded to 4 decimal places.
+        Standard deviations are None when their sample size is 1.
+    """
+
+    # Validate that the outcome matrix is not empty.
+    if not outcomes:
+        raise ValueError("Outcomes cannot be empty.")
+
+    # Get the number of tasks and trials.
+    n_tasks = len(outcomes)
+    n_trials = len(outcomes[0])
+
+    # Ensure every task has the same number of trials.
+    if n_trials == 0 or any(len(row) != n_trials for row in outcomes):
+        raise ValueError("Outcomes must have equal, non-zero row lengths.")
+
+    # --------------------------------------------------
+    # 1. Calculate the mean score across all tasks.
+    # --------------------------------------------------
+
+    # Calculate the mean success rate for each task.
+    task_scores = [
+        sum(row) / n_trials
+        for row in outcomes
+    ]
+
+    # Overall benchmark score.
+    score = sum(task_scores) / n_tasks
+
+    # --------------------------------------------------
+    # 2. Calculate the standard error across tasks.
+    # --------------------------------------------------
+
+    if n_tasks > 1:
+
+        # Calculate the sample variance of task scores.
+        task_variance = sum(
+            (value - score) ** 2
+            for value in task_scores
+        ) / (n_tasks - 1)
+
+        # Sample standard deviation divided by sqrt(N).
+        se = (task_variance ** 0.5) / (n_tasks ** 0.5)
+
+    else:
+        # Standard error is undefined for a single task.
+        se = None
+
+    # --------------------------------------------------
+    # 3. Calculate the score for each individual trial.
+    # --------------------------------------------------
+
+    seed_scores = [
+        sum(outcomes[i][j] for i in range(n_tasks)) / n_tasks
+        for j in range(n_trials)
+    ]
+
+    # --------------------------------------------------
+    # 4. Calculate the sample standard deviation
+    #    across individual trial scores.
+    # --------------------------------------------------
+
+    if n_trials > 1:
+
+        # Calculate the mean of the trial scores.
+        seed_mean = sum(seed_scores) / n_trials
+
+        # Calculate the sample variance across trials.
+        seed_variance = sum(
+            (value - seed_mean) ** 2
+            for value in seed_scores
+        ) / (n_trials - 1)
+
+        # Sample standard deviation.
+        seed_std = seed_variance ** 0.5
+
+    else:
+        # Standard deviation is undefined for one trial.
+        seed_std = None
+
+    # --------------------------------------------------
+    # 5. Return the results in the required key order.
+    # --------------------------------------------------
+
+    return {
+        "score": round(score, 4),
+        "se": round(se, 4) if se is not None else None,
+        "seed_scores": [round(value, 4) for value in seed_scores],
+        "seed_std": round(seed_std, 4) if seed_std is not None else None
+    }
 
 # Step 13 - compare_checkpoints (not yet solved)
 # TODO: implement
