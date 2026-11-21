@@ -319,8 +319,122 @@ def parse_action(text):
     # Any unsupported action is invalid.
     return {"type": "invalid"}
 
-# Step 3 - run_episode (not yet solved)
-# TODO: implement
+# Step 3 - run_episode
+def run_episode(policy, task, store, max_calls=4):
+    """
+    Run one task using a tool-using agent and evaluate its final answer.
+
+    Args:
+        policy: A function that receives the transcript and returns
+                the model's next generated text.
+        task: A dictionary containing the question.
+        store: The warehouse dictionary used by the lookup tool.
+        max_calls: Maximum number of tool calls allowed.
+
+    Returns:
+        A dictionary containing:
+            status      : "answered", "invalid", or "budget"
+            answer      : The final answer token, or None.
+            correct     : Whether the final answer is correct.
+            calls       : List of (name, args, result) tuples.
+            transcript  : The complete interaction transcript.
+    """
+
+    # Initialize the conversation transcript with the question.
+    transcript = "<q> " + task["question"] + " </q>"
+
+    # Store all executed tool calls and their results.
+    calls = []
+
+    # Initialize the final answer.
+    answer = None
+
+    # Default status in case no valid action is completed.
+    status = "invalid"
+
+    # Continue interacting with the model until the episode terminates.
+    while True:
+
+        # Ask the policy for its next action using the current transcript.
+        model_output = policy(transcript)
+
+        # Parse the model's generated text into a structured action.
+        action = parse_action(model_output)
+
+        # --------------------------------------------------
+        # Case 1: Invalid action
+        # --------------------------------------------------
+        if action["type"] == "invalid":
+
+            status = "invalid"
+            break
+
+        # --------------------------------------------------
+        # Case 2: Final answer
+        # --------------------------------------------------
+        elif action["type"] == "answer":
+
+            # Extract the answer token.
+            answer = action["value"]
+
+            # Rebuild the transcript using only the parsed answer.
+            transcript += " <answer> " + answer + " </answer>"
+
+            status = "answered"
+            break
+
+        # --------------------------------------------------
+        # Case 3: Tool call
+        # --------------------------------------------------
+        elif action["type"] == "call":
+
+            # Check whether the tool-call budget has been exhausted.
+            if len(calls) >= max_calls:
+
+                status = "budget"
+                break
+
+            # Extract the tool name and its arguments.
+            name = action["name"]
+            args = action["args"]
+
+            # Execute the requested tool.
+            result = run_tool(name, args, store)
+
+            # Record the tool call, its arguments, and its result.
+            calls.append((name, args, result))
+
+            # Rebuild the transcript using the parsed tool call
+            # and the tool-generated result.
+            call_text = " ".join([name] + args)
+
+            transcript += (
+                " <call> " + call_text + " </call>"
+                + " <result> " + result + " </result>"
+            )
+
+            # Continue so the policy can observe the tool result.
+            continue
+
+    # --------------------------------------------------
+    # Grade the final answer
+    # --------------------------------------------------
+
+    # Calculate the correct answer directly using the provided checker.
+    expected_answer = str(solve(task["question"], store))
+
+    # An episode is correct only if the model answered and
+    # its answer exactly matches the expected answer.
+    correct = (status == "answered" and answer == expected_answer)
+
+    # Return all episode information.
+    return {
+        "status": status,
+        "answer": answer,
+        "correct": correct,
+        "calls": calls,
+        "transcript": transcript
+    }
 
 # Step 4 - collect_trajectories (not yet solved)
 # TODO: implement

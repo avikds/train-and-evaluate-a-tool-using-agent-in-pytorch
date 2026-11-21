@@ -12,7 +12,7 @@ python scaffold.py
 
 - [x] **1.** run_tool
 - [x] **2.** parse_action
-- [ ] **3.** run_episode
+- [x] **3.** run_episode
 - [ ] **4.** collect_trajectories
 - [ ] **5.** encode_trajectory
 - [ ] **6.** ToolLM
